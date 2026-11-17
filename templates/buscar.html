@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block contenido %}
+<section class="hero {{ 'compact' if consulta else '' }}" aria-labelledby="titulo">
+  <h1 id="titulo">Busca en <em>FiQA.</em></h1>
+  {% if not consulta %}
+  <p>Explora 57.638 documentos sobre finanzas en inglés.</p>
+  {% endif %}
+  <form class="search-form" method="get" action="{{ url_for('buscar') }}">
+    {% if qid %}
+    <input type="hidden" name="qid" value="{{ qid }}">
+    <input type="hidden" name="split" value="{{ split }}">
+    {% endif %}
+    <div class="search-box">
+      <span class="search-icon" aria-hidden="true"></span>
+      <label class="sr-only" for="q">Consulta en inglés</label>
+      <input id="q" name="q" type="search" required maxlength="500" value="{{ consulta }}"
+             placeholder="How do credit card rewards work?" autocomplete="off">
+      <button type="submit">Buscar <span aria-hidden="true">→</span></button>
+    </div>
+    <div class="filters">
+      <label for="modelo">Modelo de recuperación
+        <select id="modelo" name="modelo">
+          {% for key, label in etiquetas.items() %}
+          <option value="{{ key }}"{% if modelo == key %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+  </form>
+</section>
+{% if consulta %}
+<section class="results" aria-labelledby="ranking-title">
+  <div class="section-head">
+    <div>
+      <h2 id="ranking-title">{{ 'Comparación de rankings' if comparar else 'Resultados' }}</h2>
+      <p>{% if qid %}Consulta oficial {{ qid }} · {{ 'Prueba' if split == 'test' else 'Validación' }} · {% endif %}Top {{ k }} por modelo</p>
+    </div>
+    {% if not comparar %}
+    <a class="outline" href="{{ url_for('buscar', modelo=modelo, comparar=1, split=split, qid=qid, q=none if qid else consulta) }}">Comparar los 4 modelos →</a>
+    {% endif %}
+  </div>
+  <div class="rankings {{ 'comparison' if comparar else '' }}">
+    {% for nombre, ranking in resultados.items() %}
+    <article class="ranking" aria-labelledby="label-{{ nombre }}">
+      <div class="rank-head"><h3 id="label-{{ nombre }}">{{ etiquetas[nombre] }}</h3><span>{{ ranking|length }} resultados</span></div>
+      {% if ranking %}
+      <ol>
+        {% for fila in ranking %}
+        {% set doc = documentos[fila.doc_id] %}
+        <li>
+          <span class="rank-number" aria-label="Puesto {{ loop.index }}">{{ loop.index }}</span>
+          <div class="result-body">
+            <div class="result-meta">
+              <span>Documento {{ doc.id }}</span>
+              <span>Puntaje {{ '%.4f'|format(fila.puntaje) }}</span>
+              {% if juicios.get(doc.id, 0) > 0 %}<span class="relevante">Relevante</span>{% endif %}
+            </div>
+            {% if doc.titulo %}<h4 lang="en">{{ doc.titulo }}</h4>{% endif %}
+            <p lang="en">{{ doc.texto|truncate(245, true, '…') }}</p>
+            {% if doc.texto|length > 245 %}
+            <details><summary>Leer texto completo</summary><p lang="en">{{ doc.texto }}</p></details>
+            {% endif %}
+          </div>
+        </li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <p class="empty">No hay coincidencias para este modelo.</p>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}

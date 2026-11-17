@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Busca y compara cuatro modelos de recuperación de información sobre FiQA.">
+  <title>{% block title %}FiQA · Buscador financiero{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='fiqa.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <div class="shell header-inner">
+      <a class="brand" href="{{ url_for('buscar') }}"><span class="brand-mark" aria-hidden="true">F</span> FiQA</a>
+      <nav aria-label="Navegación principal">
+        <a href="{{ url_for('buscar') }}" {% if pagina == 'buscar' %}aria-current="page"{% endif %}>Buscar</a>
+        <a href="{{ url_for('evaluacion') }}" {% if pagina == 'evaluacion' %}aria-current="page"{% endif %}>Evaluación</a>
+      </nav>
+    </div>
+  </header>
+  <main class="shell">{% block contenido %}{% endblock %}</main>
+  <footer class="shell footer">
+    <span>Recuperación de Información · EPN</span>
+    <a href="https://huggingface.co/datasets/BeIR/fiqa">Corpus BEIR FiQA</a>
+  </footer>
+</body>
+</html>

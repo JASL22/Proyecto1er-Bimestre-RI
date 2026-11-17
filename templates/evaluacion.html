@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Evaluación · FiQA{% endblock %}
+{% macro tabla(filas, precision, recall, ap, mostrar_barra=false) %}
+<div class="table-wrap">
+  <table>
+    <thead><tr><th scope="col">Modelo</th><th scope="col">{{ precision }}</th><th scope="col">{{ recall }}</th><th scope="col">{{ ap }}</th></tr></thead>
+    <tbody>
+      {% for modelo in modelos %}
+      {% set fila = filas[modelo] %}
+      <tr>
+        <th scope="row">{{ etiquetas[modelo] }}</th>
+        <td>{{ '%.2f%%'|format(fila.precision * 100) }}</td>
+        <td>{{ '%.2f%%'|format(fila.recall * 100) }}</td>
+        <td class="ap-val">{% if mostrar_barra %}<meter aria-label="{{ ap }} de {{ etiquetas[modelo] }}" min="0" max="1" value="{{ fila.ap }}"></meter>{% endif %}{{ '%.4f'|format(fila.ap) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endmacro %}
+{% block contenido %}
+<section class="eval-header">
+  <h1>Evaluación <em>FiQA.</em></h1>
+  <p>Resultados con los juicios oficiales de relevancia de BEIR.</p>
+  <form class="eval-controls" action="{{ url_for('evaluacion') }}">
+    <label for="split">Conjunto
+      <select id="split" name="split">
+        <option value="test"{% if split == 'test' %} selected{% endif %}>Prueba</option>
+        <option value="validation"{% if split == 'validation' %} selected{% endif %}>Validación</option>
+      </select>
+    </label>
+    <button type="submit">Aplicar</button>
+  </form>
+</section>
+{% if globales %}
+<section class="eval-section">
+  <div class="section-head"><div><h2>Métricas globales</h2><p>{{ consultas|length }} consultas juzgadas</p></div></div>
+  {{ tabla(globales, 'P@' ~ k ~ ' media', 'R@' ~ k ~ ' medio', 'MAP', true) }}
+</section>
+{% endif %}
+<section class="eval-section">
+  <div class="section-head"><div><h2>Evaluación por consulta</h2></div></div>
+  <form class="query-picker" action="{{ url_for('evaluacion') }}">
+    <input type="hidden" name="split" value="{{ split }}">
+    <input type="hidden" name="top" value="{{ k }}">
+    <label class="sr-only" for="qid">Consulta oficial</label>
+    <select id="qid" name="qid">
+      {% for id, consulta in consultas.items() %}
+      <option value="{{ id }}"{% if id == qid %} selected{% endif %} lang="en">{{ id }} · {{ consulta|truncate(95, true, '…') }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit">Ver métricas</button>
+  </form>
+  <div class="judged-query">
+    <p lang="en">{{ consultas[qid] }}</p>
+    <a class="outline" href="{{ url_for('buscar', qid=qid, split=split, modelo='bm25', comparar=1) }}">Comparar rankings →</a>
+  </div>
+  {% if por_consulta %}
+  <p class="metric-note">{{ total_relevantes }} documentos con juicio positivo</p>
+  {{ tabla(por_consulta, 'Precision@' ~ k, 'Recall@' ~ k, 'AP') }}
+  <details class="method">
+    <summary>Cómo se calculan las métricas</summary>
+    <p>Precision@k divide los aciertos entre k. Recall@k divide los aciertos entre todos los documentos relevantes de la consulta. Las posiciones vacías cuentan como fallos en Precision@k.</p>
+    <p>AP suma la precisión en cada posición relevante del ranking completo y divide entre el total de documentos relevantes. MAP promedia AP sobre todas las consultas del conjunto. Relevante significa juicio &gt; 0.</p>
+  </details>
+  {% else %}
+  <p class="empty">La evaluación se está preparando.</p>
+  {% endif %}
+</section>
+{% endblock %}
