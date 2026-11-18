@@ -1,17 +1,24 @@
 {% extends "base.html" %}
-{% block title %}Evaluación · FiQA{% endblock %}
-{% macro tabla(filas, precision, recall, ap, mostrar_barra=false) %}
+{% block title %}Evaluación · FiQA · Proyecto de primer bimestre{% endblock %}
+{% macro tabla(filas, ultima_metrica, mostrar_barra=false) %}
 <div class="table-wrap">
   <table>
-    <thead><tr><th scope="col">Modelo</th><th scope="col">{{ precision }}</th><th scope="col">{{ recall }}</th><th scope="col">{{ ap }}</th></tr></thead>
+    <thead>
+      <tr>
+        <th scope="col">Modelo</th>
+        <th scope="col">Precisión · primeros 10</th>
+        <th scope="col">Exhaustividad · primeros 10</th>
+        <th scope="col">{{ ultima_metrica }}</th>
+      </tr>
+    </thead>
     <tbody>
       {% for modelo in modelos %}
       {% set fila = filas[modelo] %}
       <tr>
         <th scope="row">{{ etiquetas[modelo] }}</th>
-        <td>{{ '%.2f%%'|format(fila.precision * 100) }}</td>
-        <td>{{ '%.2f%%'|format(fila.recall * 100) }}</td>
-        <td class="ap-val">{% if mostrar_barra %}<meter aria-label="{{ ap }} de {{ etiquetas[modelo] }}" min="0" max="1" value="{{ fila.ap }}"></meter>{% endif %}{{ '%.4f'|format(fila.ap) }}</td>
+        <td class="numeric">{{ '%.2f%%'|format(fila.precision * 100) }}</td>
+        <td class="numeric">{{ '%.2f%%'|format(fila.recall * 100) }}</td>
+        <td class="ap-val numeric">{% if mostrar_barra %}<meter aria-label="{{ ultima_metrica }} de {{ etiquetas[modelo] }}" min="0" max="1" value="{{ fila.ap }}"></meter>{% endif %}{{ '%.4f'|format(fila.ap) }}</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -20,26 +27,36 @@
 {% endmacro %}
 {% block contenido %}
 <section class="eval-header">
+  <p class="project-kicker">Recuperación de Información · Proyecto de primer bimestre</p>
   <h1>Evaluación <em>FiQA.</em></h1>
-  <p>Resultados con los juicios oficiales de relevancia de BEIR.</p>
+  <p>Compara los cuatro modelos usando los juicios oficiales de relevancia de BEIR FiQA.</p>
   <form class="eval-controls" action="{{ url_for('evaluacion') }}">
-    <label for="split">Conjunto
+    <label for="split">Conjunto evaluado
       <select id="split" name="split">
-        <option value="test"{% if split == 'test' %} selected{% endif %}>Prueba</option>
-        <option value="validation"{% if split == 'validation' %} selected{% endif %}>Validación</option>
+        <option value="test"{% if split == 'test' %} selected{% endif %}>Prueba (test)</option>
+        <option value="validation"{% if split == 'validation' %} selected{% endif %}>Validación (dev)</option>
       </select>
     </label>
     <button type="submit">Aplicar</button>
   </form>
+  <p class="eval-notice">
+    El conjunto train contiene 5.500 consultas y no se usa para estas métricas.
+    La evaluación se reporta sobre prueba y validación; train no equivale a un resultado de cero.
+  </p>
 </section>
 {% if globales %}
 <section class="eval-section">
-  <div class="section-head"><div><h2>Métricas globales</h2><p>{{ consultas|length }} consultas juzgadas</p></div></div>
-  {{ tabla(globales, 'P@' ~ k ~ ' media', 'R@' ~ k ~ ' medio', 'MAP', true) }}
+  <div class="section-head">
+    <div>
+      <h2>Resultados globales</h2>
+      <p>Promedio de {{ consultas|length }} consultas del conjunto {{ 'de prueba' if split == 'test' else 'de validación' }}.</p>
+    </div>
+  </div>
+  {{ tabla(globales, 'MAP', true) }}
 </section>
 {% endif %}
 <section class="eval-section">
-  <div class="section-head"><div><h2>Evaluación por consulta</h2></div></div>
+  <div class="section-head"><div><h2>Resultados por consulta</h2></div></div>
   <form class="query-picker" action="{{ url_for('evaluacion') }}">
     <input type="hidden" name="split" value="{{ split }}">
     <input type="hidden" name="top" value="{{ k }}">
@@ -56,12 +73,17 @@
     <a class="outline" href="{{ url_for('buscar', qid=qid, split=split, modelo='bm25', comparar=1) }}">Comparar rankings →</a>
   </div>
   {% if por_consulta %}
-  <p class="metric-note">{{ total_relevantes }} documentos con juicio positivo</p>
-  {{ tabla(por_consulta, 'Precision@' ~ k, 'Recall@' ~ k, 'AP') }}
+  <p class="metric-note">{{ total_relevantes }} documentos relevantes según los qrels de esta consulta.</p>
+  {{ tabla(por_consulta, 'AP') }}
+  <p class="eval-notice">
+    Cero en precisión o exhaustividad significa que no hubo relevantes en los primeros 10.
+    AP igual a 0 significa que no se recuperó ningún relevante en todo el ranking; no faltan datos.
+  </p>
   <details class="method">
     <summary>Cómo se calculan las métricas</summary>
-    <p>Precision@k divide los aciertos entre k. Recall@k divide los aciertos entre todos los documentos relevantes de la consulta. Las posiciones vacías cuentan como fallos en Precision@k.</p>
-    <p>AP suma la precisión en cada posición relevante del ranking completo y divide entre el total de documentos relevantes. MAP promedia AP sobre todas las consultas del conjunto. Relevante significa juicio &gt; 0.</p>
+    <p>Precisión en los primeros 10: documentos relevantes recuperados entre esos 10 resultados. Si el ranking devuelve menos de 10, las posiciones faltantes cuentan como fallos.</p>
+    <p>Exhaustividad en los primeros 10 (Recall): documentos relevantes recuperados entre los primeros 10, dividido para todos los documentos relevantes de la consulta.</p>
+    <p>AP promedia la precisión en cada posición relevante del ranking completo. MAP es el promedio de AP entre todas las consultas del conjunto. Un documento es relevante cuando su juicio qrels es mayor que cero.</p>
   </details>
   {% else %}
   <p class="empty">La evaluación se está preparando.</p>

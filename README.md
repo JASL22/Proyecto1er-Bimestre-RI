@@ -1,6 +1,10 @@
-# FiQA · Buscador financiero
+# Recuperación de Información · Proyecto de primer bimestre
+
+## FiQA · Buscador financiero
 
 Aplicación Flask para buscar sobre los 57.638 documentos de BEIR FiQA en inglés. Permite consultar uno de los cuatro modelos, comparar sus rankings y evaluar consultas oficiales en validación y prueba.
+
+El proyecto cumple el objetivo de comparar recuperación clásica basada en términos y recuperación semántica con embeddings. La interfaz mantiene una búsqueda sencilla y ofrece selección de modelo, comparación de rankings y métricas de evaluación.
 
 ## Ejecutar en Windows
 
@@ -14,11 +18,11 @@ python -m venv .venv
 .\.venv\Scripts\python.exe app.py
 ```
 
-El proyecto usa los archivos locales FIQA y no necesita descargar el corpus.
+El proyecto carga los archivos locales FIQA (`corpus.jsonl`, `queries.jsonl` y `qrels/`) y no necesita descargar el corpus al ejecutarse.
 Busca automáticamente `Downloads\fiqa\fiqa` y `Downloads\fiqa (1)\fiqa`.
 Puedes fijar otra copia con `FIQA_DATA_DIR` o con `preparar.py ... --datos RUTA`.
 
-Abre [el buscador local](http://127.0.0.1:8000/). En Linux o macOS usa `.venv/bin/python` en lugar del ejecutable de Windows. La búsqueda mantiene solo el campo de texto, el selector de uno de los cuatro modelos y el botón Buscar. Los resultados se muestran en Top 10; desde ellos se puede abrir la comparación de los cuatro modelos. La sección Evaluación muestra Precision@10, Recall@10, AP por consulta y MAP global. El modelo ONNX incluido está dirigido a equipos x86-64 con AVX2.
+Abre [el buscador local](http://127.0.0.1:8000/). En Linux o macOS usa `.venv/bin/python` en lugar del ejecutable de Windows. La búsqueda mantiene solo el campo de texto, el selector de uno de los cuatro modelos y el botón Buscar. Los resultados se muestran en Top 10; desde ellos se puede abrir la comparación de los cuatro modelos. La sección Evaluación muestra precisión y exhaustividad en los primeros 10 resultados, AP por consulta y MAP global. El modelo ONNX incluido está dirigido a equipos x86-64 con AVX2.
 
 ## Publicación en Render Free
 
@@ -29,6 +33,8 @@ El despliegue instala las dependencias del servidor y descarga de Hugging Face l
 **Estado de publicación:** todavía no hay una URL pública asignada. Después de crear el servicio en tu cuenta de Render, copia la URL que Render genere aquí y en `informe_tecnico.pdf`; la configuración del Blueprint no equivale a un despliegue publicado.
 
 ## Modelos
+
+El índice invertido y el preprocesamiento implementan los modelos léxicos; FAISS realiza la búsqueda vectorial de embeddings. No se usa un motor de búsqueda completo.
 
 | Modelo | Puntuación |
 |---|---|
@@ -41,18 +47,18 @@ La web elige Snowball en inglés para el corpus financiero en inglés: reduce va
 
 ## Evaluación
 
-En **Evaluación**, elige el conjunto oficial y una consulta. La primera tabla muestra Precision@10 y Recall@10 promediados entre consultas, y MAP sobre el ranking completo. La segunda muestra las métricas de la consulta seleccionada. **Comparar rankings** abre los cuatro resultados en paralelo y destaca los documentos con un juicio positivo.
+En **Evaluación**, elige el conjunto de prueba o validación y una consulta. La primera tabla muestra precisión y exhaustividad promedio en los primeros 10 resultados, y MAP sobre el ranking completo. La segunda muestra las métricas de la consulta seleccionada. **Comparar rankings** abre los cuatro resultados en paralelo y destaca los documentos con un juicio positivo. El conjunto `train` (5.500 consultas) no se mezcla con esas métricas; no se presenta como cero.
 
-- **Precision@10** divide los aciertos entre 10. Las posiciones faltantes cuentan como fallos.
-- **Recall@10** divide los aciertos entre todos los documentos juzgados relevantes.
+- **Precisión en los primeros 10** divide los aciertos entre 10. Las posiciones faltantes cuentan como fallos.
+- **Exhaustividad (Recall) en los primeros 10** divide los documentos relevantes recuperados entre todos los documentos juzgados relevantes.
 - **AP** suma la precisión en cada posición relevante del ranking completo y divide entre el total de relevantes. Los relevantes que el modelo no recupera aportan cero.
-- **MAP** es la media de AP entre todas las consultas del split. Precision y Recall usan el corte fijo Top 10. La AP y el MAP usan siempre el ranking completo devuelto por cada modelo.
+- **MAP** es la media de AP entre todas las consultas del conjunto. Precisión y exhaustividad usan el corte fijo de los primeros 10; AP y MAP usan el ranking completo devuelto por cada modelo. Cero en precisión o exhaustividad significa que no hubo relevantes en el Top 10; AP cero significa que no se recuperó ninguno en el ranking completo. No implica que falten datos.
 
 ### Resultados en prueba
 
 Evaluación sobre 648 consultas oficiales.
 
-| Modelo | Precision@10 media | Recall@10 medio | MAP |
+| Modelo | Precisión media (Top 10) | Exhaustividad media (Top 10) | MAP |
 |---|---:|---:|---:|
 | Binario | 1,47 % | 5,89 % | 0,0372 |
 | TF-IDF | 5,06 % | 21,37 % | 0,1344 |
